@@ -1,0 +1,214 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-background text-text-primary;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-surface/20;
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/20;
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-white/30;
+  }
+  
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Selection color */
+  ::selection {
+    @apply bg-accent/30 text-white;
+  }
+  
+  ::-moz-selection {
+    @apply bg-accent/30 text-white;
+  }
+}
+
+@layer utilities {
+  .text-2xs {
+    font-size: 0.625rem;
+    line-height: 0.75rem;
+  }
+  
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  
+  /* Glassmorphism utilities */
+  .glass {
+    @apply bg-surface/80 backdrop-blur-md border border-white/10;
+  }
+  
+  /* Animation utilities */
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+  
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 5px rgba(224, 6, 0, 0.2);
+    }
+    to {
+      box-shadow: 0 0 20px rgba(224, 6, 0, 0.4);
+    }
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  /* Fade animations */
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .fade-in-up {
+    animation: fadeInUp 0.5s ease-out;
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Loading spinner */
+  .spinner {
+    @apply w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin;
+  }
+  
+  /* Gradient text */
+  .text-gradient {
+    background: linear-gradient(135deg, #e10600 0%, #ff4500 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 200%;
+    animation: gradient 3s ease infinite;
+  }
+  
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  
+  /* Hover effects */
+  .hover-lift {
+    transition: transform 0.2s ease;
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+  
+  /* Focus states */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent;
+  }
+  
+  /* Data table styles */
+  .data-table th {
+    @apply text-text-secondary text-2xs font-medium uppercase tracking-wider;
+  }
+  
+  .data-table td {
+    @apply text-text-primary font-mono;
+  }
+  
+  /* Status indicators */
+  .status-green {
+    @apply text-green-400 bg-green-500/20 border border-green-500/40;
+  }
+  
+  .status-yellow {
+    @apply text-yellow-400 bg-yellow-500/20 border border-yellow-500/40;
+  }
+  
+  .status-red {
+    @apply text-red-400 bg-red-500/20 border border-red-500/40;
+  }
+  
+  /* Button variants */
+  .btn-primary {
+    @apply bg-accent hover:bg-accent/80 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply bg-surface hover:bg-white/10 text-text-primary border border-white/20 font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+  
+  .btn-ghost {
+    @apply hover:bg-white/5 text-text-primary font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+  
+  /* Timing specific styles */
+  .timing-row {
+    @apply hover:bg-white/5 transition-all duration-200;
+  }
+  
+  .timing-row.selected {
+    @apply bg-white/10 ring-1 ring-white/20;
+  }
+  
+  .sector-time {
+    @apply font-mono font-bold text-xs;
+  }
+  
+  .sector-fastest {
+    @apply text-sector-purple;
+  }
+  
+  .sector-personal {
+    @apply text-sector-green;
+  }
+  
+  .sector-current {
+    @apply text-sector-yellow;
+  }
+}
