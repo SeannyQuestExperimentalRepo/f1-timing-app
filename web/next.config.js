@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['api.openf1.org'],
+    unoptimized: true,
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {

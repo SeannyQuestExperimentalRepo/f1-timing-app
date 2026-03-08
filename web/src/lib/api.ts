@@ -13,7 +13,7 @@ import {
   ApiError 
 } from './types';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'https://api.openf1.org/v1';
 
 class ApiClient {
   private baseURL: string;
@@ -73,7 +73,8 @@ class ApiClient {
   }
 
   async getSession(sessionKey: string): Promise<Session> {
-    return this.request(`/sessions/${sessionKey}`);
+    const sessions = await this.request<Session[]>(`/sessions?session_key=${sessionKey}`);
+    return sessions[0];
   }
 
   // Get the most recent session (for "live" purposes)
@@ -99,7 +100,7 @@ class ApiClient {
 
   // Timing/Laps data
   async getSessionLaps(sessionKey: string, limit: number = 100): Promise<Lap[]> {
-    return this.request(`/timing?session_key=${sessionKey}&limit=${limit}`);
+    return this.request(`/laps?session_key=${sessionKey}&limit=${limit}`);
   }
 
   // Position data
