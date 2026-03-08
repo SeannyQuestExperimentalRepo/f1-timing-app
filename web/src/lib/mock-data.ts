@@ -250,7 +250,7 @@ export function generateMockPitStops() {
 // Generate mock tire degradation data
 export function generateMockTireDegData() {
   const compounds: TireCompound[] = ['SOFT', 'MEDIUM', 'HARD'];
-  const data = [];
+  const data: any[] = [];
   
   compounds.forEach(compound => {
     for (let age = 1; age <= 20; age++) {

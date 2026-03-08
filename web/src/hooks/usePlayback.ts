@@ -4,7 +4,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { usePlaybackStore } from '@/stores/playback-store';
 import { useF1WebSocket } from './useF1WebSocket';
 import { api } from '@/lib/api';
-import { RecordedData, SessionRecord } from '@/lib/types';
+import { Session, SessionRecord } from '@/lib/types';
 
 interface PlaybackOptions {
   bufferSize?: number; // How many seconds of data to buffer
@@ -27,6 +27,19 @@ export function usePlayback(options: PlaybackOptions = {}) {
   const bufferIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastBufferUpdateRef = useRef<number>(0);
+
+  // Refresh buffer with data around current position
+  // TODO: Implement OpenF1 API-based data buffering for replay functionality
+  const refreshBuffer = useCallback(async () => {
+    if (!playbackStore.session) return;
+    
+    // For now, this is a stub since we don't have replay data from OpenF1
+    // In a real implementation, we'd query OpenF1 with time-based filters
+    lastBufferUpdateRef.current = Date.now();
+    
+    // Update buffer health (simulated)
+    playbackStore.updateBufferHealth(0.8); // Simulate good buffer health
+  }, [playbackStore]);
 
   // Start or resume playback
   const play = useCallback(() => {
@@ -81,7 +94,7 @@ export function usePlayback(options: PlaybackOptions = {}) {
     
     // Force buffer refresh after seeking
     await refreshBuffer();
-  }, [playbackStore, isConnected, playbackControl]);
+  }, [playbackStore, isConnected, playbackControl, refreshBuffer]);
 
   // Change playback speed
   const setSpeed = useCallback((speed: number) => {
@@ -116,9 +129,21 @@ export function usePlayback(options: PlaybackOptions = {}) {
     seek(timestamp);
   }, [seek]);
 
+  // Helper to convert Session to SessionRecord for the playback store
+  const sessionToRecord = (session: Session): SessionRecord => ({
+    session_key: session.session_key.toString(),
+    name: session.session_name,
+    circuit: session.circuit_short_name,
+    start_time: session.date_start,
+    end_time: session.date_end,
+    status: 'completed' as const,
+    total_data_points: 0 // Will be updated when we have actual data
+  });
+
   // Load session for playback
-  const loadSession = useCallback(async (session: SessionRecord) => {
-    playbackStore.setSession(session);
+  const loadSession = useCallback(async (session: Session) => {
+    const sessionRecord = sessionToRecord(session);
+    playbackStore.setSession(sessionRecord);
     
     if (config.autoPlay) {
       // Small delay to allow session to load
@@ -127,35 +152,9 @@ export function usePlayback(options: PlaybackOptions = {}) {
     
     // Start buffering data
     await refreshBuffer();
-  }, [playbackStore, config.autoPlay, play]);
+  }, [playbackStore, config.autoPlay, play, refreshBuffer]);
 
-  // Refresh buffer with data around current position
-  const refreshBuffer = useCallback(async () => {
-    if (!playbackStore.session || !isConnected) return;
-    
-    const currentTime = playbackStore.currentPosition;
-    const bufferStartTime = currentTime - (config.bufferSize * 1000 / 2);
-    const bufferEndTime = currentTime + (config.bufferSize * 1000 / 2);
-    
-    try {
-      const result = await api.getReplayData(playbackStore.session.session_key, {
-        from: bufferStartTime,
-        to: bufferEndTime,
-        limit: 1000, // Reasonable chunk size
-      });
-      
-      playbackStore.setBuffer(result.data, bufferStartTime, bufferEndTime);
-      lastBufferUpdateRef.current = Date.now();
-      
-      // Update buffer health
-      const bufferCoverage = (bufferEndTime - bufferStartTime) / (config.bufferSize * 1000);
-      playbackStore.updateBufferHealth(Math.min(1, bufferCoverage));
-      
-    } catch (error) {
-      console.error('Failed to refresh playback buffer:', error);
-      playbackStore.updateBufferHealth(0);
-    }
-  }, [playbackStore, isConnected, config.bufferSize]);
+  // Duplicate removed - refreshBuffer is now defined earlier
 
   // Auto-buffer management
   useEffect(() => {

@@ -54,9 +54,9 @@ export interface PlaybackState {
   getTimeRemaining: () => number;
   getCurrentData: () => RecordedData[];
   getNearbyMarkers: (windowMs: number) => {
-    laps: typeof this['lapMarkers'];
-    pits: typeof this['pitMarkers'];
-    flags: typeof this['flagMarkers'];
+    laps: any[];
+    pits: any[];
+    flags: any[];
   };
 }
 

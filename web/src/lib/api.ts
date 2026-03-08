@@ -1,10 +1,19 @@
-// Typed REST client for F1 Timing API
+// OpenF1 API client using Next.js API routes
 
-import { Session, SessionRecord, Driver, RecordedData, ApiError } from './types';
+import { 
+  Session, 
+  Driver, 
+  Lap, 
+  Position, 
+  Weather, 
+  CarData,
+  Stint,
+  RaceControl,
+  Location,
+  ApiError 
+} from './types';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : 'http://localhost:3001';
+const API_BASE_URL = '/api';
 
 class ApiClient {
   private baseURL: string;
@@ -58,44 +67,111 @@ class ApiClient {
     }
   }
 
-  // Health check
-  async health(): Promise<{ status: string; timestamp: number }> {
-    return this.request('/health');
-  }
-
   // Sessions
-  async getSessions(): Promise<SessionRecord[]> {
-    return this.request('/sessions');
+  async getSessions(year: number = 2024): Promise<Session[]> {
+    return this.request(`/sessions?year=${year}`);
   }
 
-  async getSession(sessionKey: string): Promise<SessionRecord> {
+  async getSession(sessionKey: string): Promise<Session> {
     return this.request(`/sessions/${sessionKey}`);
   }
 
-  async getSessionLaps(sessionKey: string): Promise<any[]> {
-    return this.request(`/sessions/${sessionKey}/laps`);
-  }
-
-  async getSessionStints(sessionKey: string): Promise<any[]> {
-    return this.request(`/sessions/${sessionKey}/stints`);
-  }
-
-  async getSessionRaceControl(sessionKey: string): Promise<any[]> {
-    return this.request(`/sessions/${sessionKey}/race-control`);
-  }
-
-  async getSessionWeather(sessionKey: string): Promise<any[]> {
-    return this.request(`/sessions/${sessionKey}/weather`);
+  // Get the most recent session (for "live" purposes)
+  async getLatestSession(): Promise<Session | null> {
+    try {
+      const sessions = await this.getSessions(2025);
+      if (sessions.length === 0) {
+        const sessions2024 = await this.getSessions(2024);
+        return sessions2024.length > 0 ? sessions2024[sessions2024.length - 1] : null;
+      }
+      // Sort by date and return the most recent
+      sessions.sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
+      return sessions[0];
+    } catch {
+      return null;
+    }
   }
 
   // Drivers
-  async getDrivers(): Promise<Driver[]> {
-    return this.request('/drivers');
+  async getDrivers(sessionKey: string): Promise<Driver[]> {
+    return this.request(`/drivers?session_key=${sessionKey}`);
   }
 
-  // Replay/Playback data
+  // Timing/Laps data
+  async getSessionLaps(sessionKey: string, limit: number = 100): Promise<Lap[]> {
+    return this.request(`/timing?session_key=${sessionKey}&limit=${limit}`);
+  }
+
+  // Position data
+  async getPositions(
+    sessionKey: string,
+    options: {
+      driverNumber?: number;
+      dateGte?: string;
+      dateLte?: string;
+    } = {}
+  ): Promise<Position[]> {
+    const params = new URLSearchParams({ session_key: sessionKey });
+    if (options.driverNumber) params.append('driver_number', options.driverNumber.toString());
+    if (options.dateGte) params.append('date_gte', options.dateGte);
+    if (options.dateLte) params.append('date_lte', options.dateLte);
+    
+    return this.request(`/position?${params.toString()}`);
+  }
+
+  // Weather data
+  async getWeather(sessionKey: string): Promise<Weather[]> {
+    return this.request(`/weather?session_key=${sessionKey}`);
+  }
+
+  // Car telemetry data
+  async getCarData(
+    sessionKey: string,
+    options: {
+      driverNumber?: number;
+      dateGte?: string;
+      dateLte?: string;
+      limit?: number;
+    } = {}
+  ): Promise<CarData[]> {
+    const params = new URLSearchParams({ session_key: sessionKey });
+    if (options.driverNumber) params.append('driver_number', options.driverNumber.toString());
+    if (options.dateGte) params.append('date_gte', options.dateGte);
+    if (options.dateLte) params.append('date_lte', options.dateLte);
+    if (options.limit) params.append('limit', options.limit.toString());
+    
+    return this.request(`/car_data?${params.toString()}`);
+  }
+
+  // Stint data
+  async getStints(
+    sessionKey: string,
+    driverNumber?: number
+  ): Promise<Stint[]> {
+    const params = new URLSearchParams({ session_key: sessionKey });
+    if (driverNumber) params.append('driver_number', driverNumber.toString());
+    
+    return this.request(`/stints?${params.toString()}`);
+  }
+
+  // Race control data
+  async getRaceControl(
+    sessionKey: string,
+    options: {
+      category?: string;
+      flag?: string;
+    } = {}
+  ): Promise<RaceControl[]> {
+    const params = new URLSearchParams({ session_key: sessionKey });
+    if (options.category) params.append('category', options.category);
+    if (options.flag) params.append('flag', options.flag);
+    
+    return this.request(`/race_control?${params.toString()}`);
+  }
+
+  // Replay data (fetches laps for a given session, used by DVR/replay)
   async getReplayData(
-    sessionKey: string, 
+    sessionKey: string,
     options: {
       from?: number;
       to?: number;
@@ -103,62 +179,44 @@ class ApiClient {
       offset?: number;
       channels?: string[];
     } = {}
-  ): Promise<{
-    data: RecordedData[];
-    total: number;
-    hasMore: boolean;
-  }> {
-    const params = new URLSearchParams();
-    
-    if (options.from) params.append('from', options.from.toString());
-    if (options.to) params.append('to', options.to.toString());
-    if (options.limit) params.append('limit', options.limit.toString());
-    if (options.offset) params.append('offset', options.offset.toString());
-    if (options.channels) params.append('channels', options.channels.join(','));
-
-    const query = params.toString();
-    const endpoint = `/replay/${sessionKey}/data${query ? `?${query}` : ''}`;
-    
-    return this.request(endpoint);
+  ): Promise<{ data: any[]; total: number; hasMore: boolean }> {
+    const laps = await this.getSessionLaps(sessionKey, options.limit || 100);
+    return { data: laps, total: laps.length, hasMore: false };
   }
 
-  // Telemetry endpoints (for detailed telemetry data)
+  // Driver telemetry (wraps getCarData for a specific driver)
   async getDriverTelemetry(
     sessionKey: string,
     driverNumber: number,
+    options: { from?: number; to?: number; dataTypes?: string[] } = {}
+  ): Promise<CarData[]> {
+    return this.getCarData(sessionKey, {
+      driverNumber,
+      dateGte: options.from ? new Date(options.from).toISOString() : undefined,
+      dateLte: options.to ? new Date(options.to).toISOString() : undefined,
+    });
+  }
+
+  // Health check
+  async health(): Promise<{ status: string }> {
+    return { status: 'ok' };
+  }
+
+  // Location data for track map
+  async getLocations(
+    sessionKey: string,
     options: {
-      from?: number;
-      to?: number;
-      dataTypes?: string[];
+      driverNumber?: number;
+      dateGte?: string;
+      dateLte?: string;
     } = {}
-  ): Promise<any[]> {
-    const params = new URLSearchParams();
-    params.append('driver', driverNumber.toString());
+  ): Promise<Location[]> {
+    const params = new URLSearchParams({ session_key: sessionKey });
+    if (options.driverNumber) params.append('driver_number', options.driverNumber.toString());
+    if (options.dateGte) params.append('date_gte', options.dateGte);
+    if (options.dateLte) params.append('date_lte', options.dateLte);
     
-    if (options.from) params.append('from', options.from.toString());
-    if (options.to) params.append('to', options.to.toString());
-    if (options.dataTypes) params.append('types', options.dataTypes.join(','));
-
-    const query = params.toString();
-    return this.request(`/sessions/${sessionKey}/telemetry?${query}`);
-  }
-
-  // Search sessions
-  async searchSessions(query: string): Promise<SessionRecord[]> {
-    const params = new URLSearchParams({ q: query });
-    return this.request(`/sessions/search?${params.toString()}`);
-  }
-
-  // Get live session (current/latest)
-  async getLiveSession(): Promise<Session | null> {
-    try {
-      return await this.request('/sessions/live');
-    } catch (error) {
-      if ((error as ApiError).status === 404) {
-        return null; // No live session
-      }
-      throw error;
-    }
+    return this.request(`/location?${params.toString()}`);
   }
 }
 

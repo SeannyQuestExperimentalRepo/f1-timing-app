@@ -1,18 +1,51 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Play, Clock, Database, TrendingUp } from 'lucide-react';
+import { Play, Clock, Database, TrendingUp, RefreshCw } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { MOCK_SESSION_RECORDS, MOCK_SESSION } from '@/lib/mock-data';
+import { api, handleApiError } from '@/lib/api';
+import { Session } from '@/lib/types';
 
 export default function HomePage() {
-  const currentSession = MOCK_SESSION;
-  const recentSessions = MOCK_SESSION_RECORDS.slice(0, 6);
-  const isLiveSession = true; // Mock live session state
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Fetch recent sessions (2024 data)
+        const sessionsData = await api.getSessions(2024);
+        
+        // Sort by date descending
+        const sortedSessions = sessionsData.sort((a, b) => 
+          new Date(b.date_start).getTime() - new Date(a.date_start).getTime()
+        );
+        
+        setSessions(sortedSessions.slice(0, 6)); // Get latest 6 sessions
+        
+        // Try to get most recent session as "current"
+        if (sortedSessions.length > 0) {
+          setCurrentSession(sortedSessions[0]);
+        }
+        
+      } catch (err) {
+        setError(handleApiError(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSessions();
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString([], { 
@@ -23,11 +56,34 @@ export default function HomePage() {
   };
 
   const getSessionTypeColor = (sessionName: string) => {
-    if (sessionName.includes('Race')) return '#ef4444';
-    if (sessionName.includes('Qualifying')) return '#eab308';
-    if (sessionName.includes('Practice')) return '#6b7280';
+    if (sessionName.includes('Race') || sessionName === 'Race') return '#ef4444';
+    if (sessionName.includes('Qualifying') || sessionName === 'Qualifying') return '#eab308';
+    if (sessionName.includes('Practice') || sessionName === 'Practice') return '#6b7280';
+    if (sessionName.includes('Sprint')) return '#f97316';
     return '#6b7280';
   };
+
+  const isLiveSession = false; // For now, treat as historical data
+  
+  if (error) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">Error loading F1 data: {error}</div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="btn-primary inline-flex items-center space-x-2"
+            >
+              <RefreshCw size={20} />
+              <span>Retry</span>
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -51,7 +107,7 @@ export default function HomePage() {
         </motion.div>
 
         {/* Live Session Card */}
-        {isLiveSession && (
+        {isLiveSession && currentSession && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -70,8 +126,12 @@ export default function HomePage() {
                       LIVE NOW
                     </span>
                   </div>
-                  <Badge variant="default" color="#ef4444" size="sm">
-                    Race
+                  <Badge 
+                    variant="default" 
+                    color={getSessionTypeColor(currentSession.session_name)} 
+                    size="sm"
+                  >
+                    {currentSession.session_name}
                   </Badge>
                 </div>
                 
@@ -124,17 +184,17 @@ export default function HomePage() {
           <Card className="text-center p-6">
             <Database size={32} className="mx-auto text-accent mb-3" />
             <div className="text-2xl font-mono font-bold text-text-primary mb-1">
-              {recentSessions.reduce((sum, s) => sum + s.total_data_points, 0).toLocaleString()}
+              {loading ? '---' : sessions.length.toLocaleString()}
             </div>
-            <div className="text-sm text-text-secondary">Total Data Points</div>
+            <div className="text-sm text-text-secondary">Available Sessions</div>
           </Card>
 
           <Card className="text-center p-6">
             <Clock size={32} className="mx-auto text-green-400 mb-3" />
             <div className="text-2xl font-mono font-bold text-text-primary mb-1">
-              {recentSessions.length}
+              {loading ? '---' : sessions.length > 0 ? new Date().getFullYear() : '---'}
             </div>
-            <div className="text-sm text-text-secondary">Recent Sessions</div>
+            <div className="text-sm text-text-secondary">Season Year</div>
           </Card>
 
           <Card className="text-center p-6">
@@ -163,56 +223,75 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recentSessions.map((session, index) => (
-              <motion.div
-                key={session.session_key}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 * index }}
-              >
-                <Card className="hover-lift cursor-pointer transition-all hover:border-accent/50 group">
+            {loading ? (
+              // Loading skeleton
+              [...Array(6)].map((_, index) => (
+                <Card key={index} className="animate-pulse">
                   <div className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-text-primary group-hover:text-accent transition-colors truncate">
-                          {session.name}
-                        </h3>
-                        <p className="text-sm text-text-secondary">
-                          {session.circuit} • {formatDate(session.start_time)}
-                        </p>
-                      </div>
-                      <div 
-                        className="w-2 h-8 rounded-full ml-2"
-                        style={{ backgroundColor: getSessionTypeColor(session.name) }}
-                      />
+                    <div className="h-4 bg-gray-700 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-700 rounded w-3/4 mb-4"></div>
+                    <div className="space-y-2 mb-4">
+                      <div className="h-2 bg-gray-700 rounded"></div>
+                      <div className="h-2 bg-gray-700 rounded"></div>
                     </div>
-
-                    <div className="space-y-2 text-xs text-text-secondary mb-4">
-                      <div className="flex justify-between">
-                        <span>Data Points:</span>
-                        <span className="font-mono">{session.total_data_points.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Status:</span>
-                        <span className={`font-medium ${
-                          session.status === 'completed' ? 'text-green-400' : 'text-gray-400'
-                        }`}>
-                          {session.status.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <Link 
-                      href={`/replay/${session.session_key}`}
-                      className="inline-flex items-center space-x-2 btn-secondary w-full justify-center"
-                    >
-                      <Play size={16} />
-                      <span>REPLAY</span>
-                    </Link>
+                    <div className="h-8 bg-gray-700 rounded"></div>
                   </div>
                 </Card>
-              </motion.div>
-            ))}
+              ))
+            ) : sessions.length === 0 ? (
+              <div className="col-span-full text-center py-8">
+                <p className="text-text-secondary">No sessions available</p>
+              </div>
+            ) : (
+              sessions.map((session, index) => (
+                <motion.div
+                  key={session.session_key}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 * index }}
+                >
+                  <Card className="hover-lift cursor-pointer transition-all hover:border-accent/50 group">
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-text-primary group-hover:text-accent transition-colors truncate">
+                            {session.session_name}
+                          </h3>
+                          <p className="text-sm text-text-secondary">
+                            {session.circuit_short_name} • {formatDate(session.date_start)}
+                          </p>
+                        </div>
+                        <div 
+                          className="w-2 h-8 rounded-full ml-2"
+                          style={{ backgroundColor: getSessionTypeColor(session.session_name) }}
+                        />
+                      </div>
+
+                      <div className="space-y-2 text-xs text-text-secondary mb-4">
+                        <div className="flex justify-between">
+                          <span>Circuit:</span>
+                          <span className="font-mono">{session.location}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Year:</span>
+                          <span className={`font-medium text-green-400`}>
+                            {session.year}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Link 
+                        href={`/replay/${session.session_key}`}
+                        className="inline-flex items-center space-x-2 btn-secondary w-full justify-center"
+                      >
+                        <Play size={16} />
+                        <span>REPLAY</span>
+                      </Link>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))
+            )}
           </div>
         </motion.section>
       </main>

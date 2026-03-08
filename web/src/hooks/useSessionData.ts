@@ -55,10 +55,10 @@ function useApiData<T>(
 }
 
 // Hook for fetching all sessions
-export function useSessions() {
+export function useSessions(year: number = 2024) {
   return useApiData(
-    () => api.getSessions(),
-    []
+    () => api.getSessions(year),
+    [year]
   );
 }
 
@@ -81,7 +81,7 @@ export function useSessionLaps(sessionKey: string | null) {
 // Hook for fetching session stints
 export function useSessionStints(sessionKey: string | null) {
   return useApiData(
-    () => sessionKey ? api.getSessionStints(sessionKey) : Promise.resolve(null),
+    () => sessionKey ? api.getStints(sessionKey) : Promise.resolve(null),
     [sessionKey]
   );
 }
@@ -89,7 +89,7 @@ export function useSessionStints(sessionKey: string | null) {
 // Hook for fetching session weather
 export function useSessionWeather(sessionKey: string | null) {
   return useApiData(
-    () => sessionKey ? api.getSessionWeather(sessionKey) : Promise.resolve(null),
+    () => sessionKey ? api.getWeather(sessionKey) : Promise.resolve(null),
     [sessionKey]
   );
 }
@@ -97,16 +97,16 @@ export function useSessionWeather(sessionKey: string | null) {
 // Hook for fetching session race control messages
 export function useSessionRaceControl(sessionKey: string | null) {
   return useApiData(
-    () => sessionKey ? api.getSessionRaceControl(sessionKey) : Promise.resolve(null),
+    () => sessionKey ? api.getRaceControl(sessionKey) : Promise.resolve(null),
     [sessionKey]
   );
 }
 
-// Hook for fetching drivers
-export function useDrivers() {
+// Hook for fetching drivers for a specific session
+export function useDrivers(sessionKey: string | null) {
   return useApiData(
-    () => api.getDrivers(),
-    []
+    () => sessionKey ? api.getDrivers(sessionKey) : Promise.resolve(null),
+    [sessionKey]
   );
 }
 
@@ -126,7 +126,7 @@ export function useLiveSession() {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
-      const session = await api.getLiveSession();
+      const session = await api.getLatestSession();
       setState({ session, loading: false, error: null });
     } catch (error) {
       const errorMessage = handleApiError(error);
@@ -149,7 +149,7 @@ export function useLiveSession() {
 // Hook for searching sessions
 export function useSessionSearch() {
   const [state, setState] = useState<{
-    results: SessionRecord[];
+    results: Session[];
     loading: boolean;
     error: string | null;
     query: string;
@@ -169,7 +169,14 @@ export function useSessionSearch() {
     setState(prev => ({ ...prev, loading: true, error: null, query }));
     
     try {
-      const results = await api.searchSessions(query.trim());
+      // Simple client-side search since OpenF1 doesn't have search endpoint
+      const allSessions = await api.getSessions(2024);
+      const results = allSessions.filter(session => 
+        session.session_name.toLowerCase().includes(query.toLowerCase()) ||
+        session.circuit_short_name.toLowerCase().includes(query.toLowerCase()) ||
+        session.location.toLowerCase().includes(query.toLowerCase())
+      );
+      
       setState(prev => ({ 
         ...prev, 
         results, 
