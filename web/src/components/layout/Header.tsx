@@ -16,7 +16,7 @@ interface HeaderProps {
 }
 
 export function Header({
-  sessionName = "2025 Bahrain GP - Race",
+  sessionName = "",
   currentLap = 32,
   totalLaps = 57,
   flagStatus = "GREEN",

@@ -22,8 +22,12 @@ export default function HomePage() {
         setLoading(true);
         setError(null);
         
-        // Fetch recent sessions (2024 data)
-        const sessionsData = await api.getSessions(2024);
+        // Fetch recent sessions - try current year first, fall back
+        const currentYear = new Date().getFullYear();
+        let sessionsData = await api.getSessions(currentYear);
+        if (sessionsData.length === 0) {
+          sessionsData = await api.getSessions(currentYear - 1);
+        }
         
         // Sort by date descending
         const sortedSessions = sessionsData.sort((a, b) => 
@@ -68,7 +72,7 @@ export default function HomePage() {
   if (error) {
     return (
       <div className="min-h-screen">
-        <Header />
+        <Header sessionName="" />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center">
             <div className="text-red-500 mb-4">Error loading F1 data: {error}</div>
@@ -87,7 +91,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
-      <Header />
+      <Header sessionName={currentSession ? `${currentSession.location} - ${currentSession.session_name}` : ''} />
       
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}

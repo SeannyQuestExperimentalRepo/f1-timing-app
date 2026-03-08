@@ -2,6 +2,8 @@
 const nextConfig = {
   output: 'export',
   trailingSlash: true,
+  basePath: '/f1-timing-app',
+  assetPrefix: '/f1-timing-app/',
   images: {
     unoptimized: true,
   },
